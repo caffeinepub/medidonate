@@ -18,15 +18,10 @@ export interface None {
 }
 export type Option<T> = Some<T> | None;
 function some<T>(value: T): Some<T> {
-    return {
-        __kind__: "Some",
-        value: value
-    };
+    return { __kind__: "Some", value };
 }
 function none(): None {
-    return {
-        __kind__: "None"
-    };
+    return { __kind__: "None" };
 }
 function isNone<T>(option: Option<T>): option is None {
     return option.__kind__ === "None";
@@ -35,15 +30,11 @@ function isSome<T>(option: Option<T>): option is Some<T> {
     return option.__kind__ === "Some";
 }
 function unwrap<T>(option: Option<T>): T {
-    if (isNone(option)) {
-        throw new Error("unwrap: none");
-    }
+    if (isNone(option)) throw new Error("unwrap: none");
     return option.value;
 }
 function candid_some<T>(value: T): [T] {
-    return [
-        value
-    ];
+    return [value];
 }
 function candid_none<T>(): [] {
     return [];
@@ -51,31 +42,128 @@ function candid_none<T>(): [] {
 function record_opt_to_undefined<T>(arg: T | null): T | undefined {
     return arg == null ? undefined : arg;
 }
+
+export type DonationStatus =
+    | { pending: null }
+    | { accepted: null }
+    | { delivered: null }
+    | { rejected: null };
+
+export interface CustodyEvent {
+    timestamp: bigint;
+    changedBy: Principal;
+    oldStatus: DonationStatus;
+    newStatus: DonationStatus;
+}
+
+export interface Donation {
+    id: bigint;
+    donorName: string;
+    medicineName: string;
+    quantity: bigint;
+    expiryDate: string;
+    batchNumber: string;
+    status: DonationStatus;
+    notes: string;
+    createdAt: bigint;
+    pickupAddress: string;
+    pickupLat: number;
+    pickupLng: number;
+    creatorPrincipal: Principal;
+    custodyLog: CustodyEvent[];
+}
+
+export interface DonationStats {
+    total: bigint;
+    pending: bigint;
+    accepted: bigint;
+    delivered: bigint;
+    rejected: bigint;
+    totalDeliveredQuantity: bigint;
+}
+
+export interface UserProfile {
+    displayName: string;
+    phone: string;
+    bio: string;
+    updatedAt: bigint;
+}
+
+export interface LeaderboardEntry {
+    donorName: string;
+    deliveredQuantity: bigint;
+}
+
+export type UserRole = { admin: null } | { user: null } | { guest: null };
+
+function candid_opt_to_option<T>(val: [T] | []): Option<T> {
+    if (val.length === 0) return none();
+    return some(val[0]);
+}
+
+export interface backendInterface {
+    createDonation(
+        donorName: string,
+        medicineName: string,
+        quantity: bigint,
+        expiryDate: string,
+        batchNumber: string,
+        notes: string,
+        pickupAddress: string,
+        pickupLat: number,
+        pickupLng: number
+    ): Promise<bigint>;
+    seedDonations(): Promise<bigint>;
+    seedNeedRequests(): Promise<bigint>;
+    getDonations(): Promise<Donation[]>;
+    getDonation(id: bigint): Promise<Option<Donation>>;
+    getUserDonations(user: Principal): Promise<Donation[]>;
+    getCustodyLog(id: bigint): Promise<CustodyEvent[]>;
+    updateDonation(
+        id: bigint,
+        donorName: string,
+        medicineName: string,
+        quantity: bigint,
+        expiryDate: string,
+        batchNumber: string,
+        notes: string,
+        pickupAddress: string,
+        pickupLat: number,
+        pickupLng: number
+    ): Promise<boolean>;
+    setDonationLocation(id: bigint, address: string, lat: number, lng: number): Promise<boolean>;
+    updateStatus(id: bigint, status: DonationStatus): Promise<boolean>;
+    batchUpdateStatus(ids: bigint[], status: DonationStatus): Promise<bigint>;
+    deleteDonation(id: bigint): Promise<boolean>;
+    getStats(): Promise<DonationStats>;
+    getLeaderboard(): Promise<LeaderboardEntry[]>;
+    setMyProfile(displayName: string, phone: string, bio: string): Promise<void>;
+    getMyProfile(): Promise<Option<UserProfile>>;
+    getProfile(user: Principal): Promise<Option<UserProfile>>;
+    getAllProfiles(): Promise<[Principal, UserProfile][]>;
+    _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
+    getCallerUserRole(): Promise<UserRole>;
+    isCallerAdmin(): Promise<boolean>;
+    assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+}
+
 export class ExternalBlob {
     _blob?: Uint8Array<ArrayBuffer> | null;
     directURL: string;
     onProgress?: (percentage: number) => void = undefined;
-    private constructor(directURL: string, blob: Uint8Array<ArrayBuffer> | null){
-        if (blob) {
-            this._blob = blob;
-        }
+    private constructor(directURL: string, blob: Uint8Array<ArrayBuffer> | null) {
+        if (blob) this._blob = blob;
         this.directURL = directURL;
     }
     static fromURL(url: string): ExternalBlob {
         return new ExternalBlob(url, null);
     }
     static fromBytes(blob: Uint8Array<ArrayBuffer>): ExternalBlob {
-        const url = URL.createObjectURL(new Blob([
-            new Uint8Array(blob)
-        ], {
-            type: 'application/octet-stream'
-        }));
+        const url = URL.createObjectURL(new Blob([new Uint8Array(blob)], { type: 'application/octet-stream' }));
         return new ExternalBlob(url, blob);
     }
     public async getBytes(): Promise<Uint8Array<ArrayBuffer>> {
-        if (this._blob) {
-            return this._blob;
-        }
+        if (this._blob) return this._blob;
         const response = await fetch(this.directURL);
         const blob = await response.blob();
         this._blob = new Uint8Array(await blob.arrayBuffer());
@@ -89,28 +177,259 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface backendInterface {
-}
+
 export class Backend implements backendInterface {
-    constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    constructor(
+        private actor: ActorSubclass<_SERVICE>,
+        private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>,
+        private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>,
+        private processError?: (error: unknown) => never
+    ) {}
+
+    async createDonation(
+        donorName: string,
+        medicineName: string,
+        quantity: bigint,
+        expiryDate: string,
+        batchNumber: string,
+        notes: string,
+        pickupAddress: string,
+        pickupLat: number,
+        pickupLng: number
+    ): Promise<bigint> {
+        try {
+            return await this.actor.createDonation(donorName, medicineName, quantity, expiryDate, batchNumber, notes, pickupAddress, pickupLat, pickupLng);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async seedDonations(): Promise<bigint> {
+        try {
+            return await this.actor.seedDonations();
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async seedNeedRequests(): Promise<bigint> {
+        try {
+            return await this.actor.seedNeedRequests();
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getDonations(): Promise<Donation[]> {
+        try {
+            return await this.actor.getDonations() as Donation[];
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getDonation(id: bigint): Promise<Option<Donation>> {
+        try {
+            const result = await this.actor.getDonation(id);
+            return candid_opt_to_option(result as [Donation] | []);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getUserDonations(user: Principal): Promise<Donation[]> {
+        try {
+            return await this.actor.getUserDonations(user) as Donation[];
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getCustodyLog(id: bigint): Promise<CustodyEvent[]> {
+        try {
+            return await this.actor.getCustodyLog(id) as CustodyEvent[];
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async updateDonation(
+        id: bigint,
+        donorName: string,
+        medicineName: string,
+        quantity: bigint,
+        expiryDate: string,
+        batchNumber: string,
+        notes: string,
+        pickupAddress: string,
+        pickupLat: number,
+        pickupLng: number
+    ): Promise<boolean> {
+        try {
+            return await this.actor.updateDonation(id, donorName, medicineName, quantity, expiryDate, batchNumber, notes, pickupAddress, pickupLat, pickupLng);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async setDonationLocation(id: bigint, address: string, lat: number, lng: number): Promise<boolean> {
+        try {
+            return await this.actor.setDonationLocation(id, address, lat, lng);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async updateStatus(id: bigint, status: DonationStatus): Promise<boolean> {
+        try {
+            return await this.actor.updateStatus(id, status);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async batchUpdateStatus(ids: bigint[], status: DonationStatus): Promise<bigint> {
+        try {
+            return await this.actor.batchUpdateStatus(ids, status);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async deleteDonation(id: bigint): Promise<boolean> {
+        try {
+            return await this.actor.deleteDonation(id);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getStats(): Promise<DonationStats> {
+        try {
+            return await this.actor.getStats() as DonationStats;
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getLeaderboard(): Promise<LeaderboardEntry[]> {
+        try {
+            return await this.actor.getLeaderboard() as LeaderboardEntry[];
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async setMyProfile(displayName: string, phone: string, bio: string): Promise<void> {
+        try {
+            await this.actor.setMyProfile(displayName, phone, bio);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getMyProfile(): Promise<Option<UserProfile>> {
+        try {
+            const result = await this.actor.getMyProfile();
+            return candid_opt_to_option(result as [UserProfile] | []);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getProfile(user: Principal): Promise<Option<UserProfile>> {
+        try {
+            const result = await this.actor.getProfile(user);
+            return candid_opt_to_option(result as [UserProfile] | []);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getAllProfiles(): Promise<[Principal, UserProfile][]> {
+        try {
+            return await this.actor.getAllProfiles() as [Principal, UserProfile][];
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async _initializeAccessControlWithSecret(userSecret: string): Promise<void> {
+        try {
+            await this.actor._initializeAccessControlWithSecret(userSecret);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async getCallerUserRole(): Promise<UserRole> {
+        try {
+            return await this.actor.getCallerUserRole() as UserRole;
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async isCallerAdmin(): Promise<boolean> {
+        try {
+            return await this.actor.isCallerAdmin();
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
+
+    async assignCallerUserRole(user: Principal, role: UserRole): Promise<void> {
+        try {
+            await this.actor.assignCallerUserRole(user, role);
+        } catch (e) {
+            if (this.processError) this.processError(e);
+            throw e;
+        }
+    }
 }
+
 export interface CreateActorOptions {
     agent?: Agent;
     agentOptions?: HttpAgentOptions;
     actorOptions?: ActorConfig;
     processError?: (error: unknown) => never;
 }
-export function createActor(canisterId: string, _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, options: CreateActorOptions = {}): Backend {
-    const agent = options.agent || HttpAgent.createSync({
-        ...options.agentOptions
-    });
+
+export function createActor(
+    canisterId: string,
+    _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>,
+    _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>,
+    options: CreateActorOptions = {}
+): Backend {
+    const agent = options.agent || HttpAgent.createSync({ ...options.agentOptions });
     if (options.agent && options.agentOptions) {
         console.warn("Detected both agent and agentOptions passed to createActor. Ignoring agentOptions and proceeding with the provided agent.");
     }
     const actor = Actor.createActor<_SERVICE>(idlFactory, {
         agent,
-        canisterId: canisterId,
-        ...options.actorOptions
+        canisterId,
+        ...options.actorOptions,
     });
     return new Backend(actor, _uploadFile, _downloadFile, options.processError);
 }

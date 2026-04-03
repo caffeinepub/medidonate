@@ -2,19 +2,73 @@ import {
   HeartPulse,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Package,
   User,
+  Users,
 } from "lucide-react";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
-import { useUserRole } from "../hooks/useQueries";
+import { useMyProfile, useUserRole } from "../hooks/useQueries";
 
-export function Sidebar() {
+export type AppView = "dashboard" | "map" | "profile" | "users";
+
+interface SidebarProps {
+  view: AppView;
+  onViewChange: (v: AppView) => void;
+}
+
+export function Sidebar({ view, onViewChange }: SidebarProps) {
   const { clear, identity } = useInternetIdentity();
   const { data: role } = useUserRole();
+  const { data: profileOption } = useMyProfile();
 
   const roleLabel = role ? Object.keys(role)[0] : "user";
+  const isAdmin = role && "admin" in role;
   const principal = identity ? identity.getPrincipal().toString() : "";
   const principalShort = principal ? `${principal.slice(0, 10)}...` : "";
+
+  const displayName =
+    profileOption && profileOption.__kind__ === "Some"
+      ? profileOption.value.displayName
+      : null;
+
+  type NavItem = {
+    label: string;
+    value: AppView;
+    icon: React.ReactNode;
+    adminOnly?: boolean;
+  };
+
+  const navItems: NavItem[] = [
+    {
+      label: "Dashboard",
+      value: "dashboard",
+      icon: <LayoutDashboard className="w-4 h-4" />,
+    },
+    {
+      label: "Donations",
+      value: "dashboard",
+      icon: <Package className="w-4 h-4" />,
+    },
+    {
+      label: "Map View",
+      value: "map",
+      icon: <MapPin className="w-4 h-4" />,
+    },
+    {
+      label: "Profile",
+      value: "profile",
+      icon: <User className="w-4 h-4" />,
+    },
+    {
+      label: "Users",
+      value: "users",
+      icon: <Users className="w-4 h-4" />,
+      adminOnly: true,
+    },
+  ];
+
+  const visibleItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
     <aside className="w-64 min-h-screen bg-sidebar text-sidebar-foreground flex flex-col">
@@ -40,22 +94,22 @@ export function Sidebar() {
         <p className="px-3 text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider mb-2">
           Main
         </p>
-        <button
-          type="button"
-          data-ocid="nav.link"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md bg-sidebar-accent text-sidebar-accent-foreground font-medium text-sm"
-        >
-          <LayoutDashboard className="w-4 h-4" />
-          Dashboard
-        </button>
-        <button
-          type="button"
-          data-ocid="nav.link"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground text-sm transition-colors"
-        >
-          <Package className="w-4 h-4" />
-          Donations
-        </button>
+        {visibleItems.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            data-ocid="nav.link"
+            onClick={() => onViewChange(item.value)}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
+              view === item.value
+                ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            }`}
+          >
+            {item.icon}
+            {item.label}
+          </button>
+        ))}
       </nav>
 
       {/* User footer */}
@@ -66,7 +120,7 @@ export function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-sidebar-foreground truncate">
-              {principalShort}
+              {displayName || principalShort}
             </p>
             <p className="text-xs text-sidebar-foreground/50 capitalize">
               {roleLabel}

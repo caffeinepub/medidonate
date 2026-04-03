@@ -10,7 +10,83 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface _SERVICE {}
+export type DonationStatus =
+  | { pending: null }
+  | { accepted: null }
+  | { delivered: null }
+  | { rejected: null };
+
+export interface CustodyEvent {
+  timestamp: bigint;
+  changedBy: Principal;
+  oldStatus: DonationStatus;
+  newStatus: DonationStatus;
+}
+
+export interface Donation {
+  id: bigint;
+  donorName: string;
+  medicineName: string;
+  quantity: bigint;
+  expiryDate: string;
+  batchNumber: string;
+  status: DonationStatus;
+  notes: string;
+  createdAt: bigint;
+  pickupAddress: string;
+  pickupLat: number;
+  pickupLng: number;
+  creatorPrincipal: Principal;
+  custodyLog: CustodyEvent[];
+}
+
+export interface DonationStats {
+  total: bigint;
+  pending: bigint;
+  accepted: bigint;
+  delivered: bigint;
+  rejected: bigint;
+  totalDeliveredQuantity: bigint;
+}
+
+export interface UserProfile {
+  displayName: string;
+  phone: string;
+  bio: string;
+  updatedAt: bigint;
+}
+
+export interface LeaderboardEntry {
+  donorName: string;
+  deliveredQuantity: bigint;
+}
+
+export type UserRole = { admin: null } | { user: null } | { guest: null };
+
+export interface _SERVICE {
+  createDonation: ActorMethod<[string, string, bigint, string, string, string, string, number, number], bigint>;
+  seedDonations: ActorMethod<[], bigint>;
+  seedNeedRequests: ActorMethod<[], bigint>;
+  getDonations: ActorMethod<[], Donation[]>;
+  getDonation: ActorMethod<[bigint], [Donation] | []>;
+  getUserDonations: ActorMethod<[Principal], Donation[]>;
+  getCustodyLog: ActorMethod<[bigint], CustodyEvent[]>;
+  updateDonation: ActorMethod<[bigint, string, string, bigint, string, string, string, string, number, number], boolean>;
+  setDonationLocation: ActorMethod<[bigint, string, number, number], boolean>;
+  updateStatus: ActorMethod<[bigint, DonationStatus], boolean>;
+  batchUpdateStatus: ActorMethod<[bigint[], DonationStatus], bigint>;
+  deleteDonation: ActorMethod<[bigint], boolean>;
+  getStats: ActorMethod<[], DonationStats>;
+  getLeaderboard: ActorMethod<[], LeaderboardEntry[]>;
+  setMyProfile: ActorMethod<[string, string, string], undefined>;
+  getMyProfile: ActorMethod<[], [UserProfile] | []>;
+  getProfile: ActorMethod<[Principal], [UserProfile] | []>;
+  getAllProfiles: ActorMethod<[], [Principal, UserProfile][]>;
+  _initializeAccessControlWithSecret: ActorMethod<[string], undefined>;
+  getCallerUserRole: ActorMethod<[], UserRole>;
+  isCallerAdmin: ActorMethod<[], boolean>;
+  assignCallerUserRole: ActorMethod<[Principal, UserRole], undefined>;
+}
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];
 export declare const idlFactory: IDL.InterfaceFactory;

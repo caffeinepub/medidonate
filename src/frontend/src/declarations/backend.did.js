@@ -8,10 +8,193 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const idlService = IDL.Service({});
+const DonationStatus = IDL.Variant({
+  pending: IDL.Null,
+  accepted: IDL.Null,
+  delivered: IDL.Null,
+  rejected: IDL.Null,
+});
+
+const CustodyEvent = IDL.Record({
+  timestamp: IDL.Int,
+  changedBy: IDL.Principal,
+  oldStatus: DonationStatus,
+  newStatus: DonationStatus,
+});
+
+const Donation = IDL.Record({
+  id: IDL.Nat,
+  donorName: IDL.Text,
+  medicineName: IDL.Text,
+  quantity: IDL.Nat,
+  expiryDate: IDL.Text,
+  batchNumber: IDL.Text,
+  status: DonationStatus,
+  notes: IDL.Text,
+  createdAt: IDL.Int,
+  pickupAddress: IDL.Text,
+  pickupLat: IDL.Float64,
+  pickupLng: IDL.Float64,
+  creatorPrincipal: IDL.Principal,
+  custodyLog: IDL.Vec(CustodyEvent),
+});
+
+const DonationStats = IDL.Record({
+  total: IDL.Nat,
+  pending: IDL.Nat,
+  accepted: IDL.Nat,
+  delivered: IDL.Nat,
+  rejected: IDL.Nat,
+  totalDeliveredQuantity: IDL.Nat,
+});
+
+const UserProfile = IDL.Record({
+  displayName: IDL.Text,
+  phone: IDL.Text,
+  bio: IDL.Text,
+  updatedAt: IDL.Int,
+});
+
+const LeaderboardEntry = IDL.Record({
+  donorName: IDL.Text,
+  deliveredQuantity: IDL.Nat,
+});
+
+const UserRole = IDL.Variant({
+  admin: IDL.Null,
+  user: IDL.Null,
+  guest: IDL.Null,
+});
+
+const serviceDefinition = {
+  createDonation: IDL.Func(
+    [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Float64],
+    [IDL.Nat],
+    [],
+  ),
+  seedDonations: IDL.Func([], [IDL.Nat], []),
+  seedNeedRequests: IDL.Func([], [IDL.Nat], []),
+  getDonations: IDL.Func([], [IDL.Vec(Donation)], ['query']),
+  getDonation: IDL.Func([IDL.Nat], [IDL.Opt(Donation)], ['query']),
+  getUserDonations: IDL.Func([IDL.Principal], [IDL.Vec(Donation)], ['query']),
+  getCustodyLog: IDL.Func([IDL.Nat], [IDL.Vec(CustodyEvent)], ['query']),
+  updateDonation: IDL.Func(
+    [IDL.Nat, IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Float64],
+    [IDL.Bool],
+    [],
+  ),
+  setDonationLocation: IDL.Func([IDL.Nat, IDL.Text, IDL.Float64, IDL.Float64], [IDL.Bool], []),
+  updateStatus: IDL.Func([IDL.Nat, DonationStatus], [IDL.Bool], []),
+  batchUpdateStatus: IDL.Func([IDL.Vec(IDL.Nat), DonationStatus], [IDL.Nat], []),
+  deleteDonation: IDL.Func([IDL.Nat], [IDL.Bool], []),
+  getStats: IDL.Func([], [DonationStats], ['query']),
+  getLeaderboard: IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
+  setMyProfile: IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+  getMyProfile: IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+  getProfile: IDL.Func([IDL.Principal], [IDL.Opt(UserProfile)], ['query']),
+  getAllProfiles: IDL.Func([], [IDL.Vec(IDL.Tuple(IDL.Principal, UserProfile))], ['query']),
+  // Authorization methods
+  _initializeAccessControlWithSecret: IDL.Func([IDL.Text], [], []),
+  getCallerUserRole: IDL.Func([], [UserRole], ['query']),
+  isCallerAdmin: IDL.Func([], [IDL.Bool], ['query']),
+  assignCallerUserRole: IDL.Func([IDL.Principal, UserRole], [], []),
+};
+
+export const idlService = IDL.Service(serviceDefinition);
 
 export const idlInitArgs = [];
 
-export const idlFactory = ({ IDL }) => { return IDL.Service({}); };
+export const idlFactory = ({ IDL }) => {
+  const DonationStatus = IDL.Variant({
+    pending: IDL.Null,
+    accepted: IDL.Null,
+    delivered: IDL.Null,
+    rejected: IDL.Null,
+  });
+
+  const CustodyEvent = IDL.Record({
+    timestamp: IDL.Int,
+    changedBy: IDL.Principal,
+    oldStatus: DonationStatus,
+    newStatus: DonationStatus,
+  });
+
+  const Donation = IDL.Record({
+    id: IDL.Nat,
+    donorName: IDL.Text,
+    medicineName: IDL.Text,
+    quantity: IDL.Nat,
+    expiryDate: IDL.Text,
+    batchNumber: IDL.Text,
+    status: DonationStatus,
+    notes: IDL.Text,
+    createdAt: IDL.Int,
+    pickupAddress: IDL.Text,
+    pickupLat: IDL.Float64,
+    pickupLng: IDL.Float64,
+    creatorPrincipal: IDL.Principal,
+    custodyLog: IDL.Vec(CustodyEvent),
+  });
+
+  const DonationStats = IDL.Record({
+    total: IDL.Nat,
+    pending: IDL.Nat,
+    accepted: IDL.Nat,
+    delivered: IDL.Nat,
+    rejected: IDL.Nat,
+    totalDeliveredQuantity: IDL.Nat,
+  });
+
+  const UserProfile = IDL.Record({
+    displayName: IDL.Text,
+    phone: IDL.Text,
+    bio: IDL.Text,
+    updatedAt: IDL.Int,
+  });
+
+  const LeaderboardEntry = IDL.Record({
+    donorName: IDL.Text,
+    deliveredQuantity: IDL.Nat,
+  });
+
+  const UserRole = IDL.Variant({
+    admin: IDL.Null,
+    user: IDL.Null,
+    guest: IDL.Null,
+  });
+
+  return IDL.Service({
+    createDonation: IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Float64],
+      [IDL.Nat],
+      [],
+    ),
+    seedDonations: IDL.Func([], [IDL.Nat], []),
+    seedNeedRequests: IDL.Func([], [IDL.Nat], []),
+    getDonations: IDL.Func([], [IDL.Vec(Donation)], ['query']),
+    getDonation: IDL.Func([IDL.Nat], [IDL.Opt(Donation)], ['query']),
+    getUserDonations: IDL.Func([IDL.Principal], [IDL.Vec(Donation)], ['query']),
+    getCustodyLog: IDL.Func([IDL.Nat], [IDL.Vec(CustodyEvent)], ['query']),
+    updateDonation: IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Float64],
+      [IDL.Bool],
+      [],
+    ),
+    setDonationLocation: IDL.Func([IDL.Nat, IDL.Text, IDL.Float64, IDL.Float64], [IDL.Bool], []),
+    updateStatus: IDL.Func([IDL.Nat, DonationStatus], [IDL.Bool], []),
+    batchUpdateStatus: IDL.Func([IDL.Vec(IDL.Nat), DonationStatus], [IDL.Nat], []),
+    deleteDonation: IDL.Func([IDL.Nat], [IDL.Bool], []),
+    getStats: IDL.Func([], [DonationStats], ['query']),
+    getLeaderboard: IDL.Func([], [IDL.Vec(LeaderboardEntry)], ['query']),
+    setMyProfile: IDL.Func([IDL.Text, IDL.Text, IDL.Text], [], []),
+    getMyProfile: IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
+    getProfile: IDL.Func([IDL.Principal], [IDL.Opt(UserProfile)], ['query']),
+    getAllProfiles: IDL.Func([], [IDL.Vec(IDL.Tuple(IDL.Principal, UserProfile))], ['query']),
+    _initializeAccessControlWithSecret: IDL.Func([IDL.Text], [], []),
+    getCallerUserRole: IDL.Func([], [UserRole], ['query']),
+    isCallerAdmin: IDL.Func([], [IDL.Bool], ['query']),
+    assignCallerUserRole: IDL.Func([IDL.Principal, UserRole], [], []),
+  });
+};
 
 export const init = ({ IDL }) => { return []; };
